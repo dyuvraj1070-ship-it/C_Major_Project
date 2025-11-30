@@ -6,13 +6,14 @@
 
 /* get today's date */
 char *today_date() {
-    static char buf[11];
+    static char buf[12];   // 11 + 1 extra for safety
     time_t t = time(NULL);
     struct tm *tm_info = localtime(&t);
-    sprintf(buf, "%04d-%02d-%02d",
-            tm_info->tm_year + 1900,
-            tm_info->tm_mon + 1,
-            tm_info->tm_mday);
+
+    snprintf(buf, sizeof(buf), "%04d-%02d-%02d",
+             tm_info->tm_year + 1900,
+             tm_info->tm_mon + 1,
+             tm_info->tm_mday);
     return buf;
 }
 
