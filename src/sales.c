@@ -3,10 +3,11 @@
 #include <string.h>
 #include <time.h>
 #include <strings.h>
+#include <stdio.h>
 
 /* get today's date */
-char *today_date() {
-    static char buf[12];   // 11 + 1 extra for safety
+char *today_date(void) {
+    static char buf[12];   // YYYY-MM-DD + NUL
     time_t t = time(NULL);
     struct tm *tm_info = localtime(&t);
 
@@ -18,7 +19,7 @@ char *today_date() {
 }
 
 /* next ID */
-int next_sale_id() {
+int next_sale_id(void) {
     FILE *fp = fopen(SALES_F, "r");
     if (!fp) return 1;
 
@@ -31,7 +32,7 @@ int next_sale_id() {
     fclose(fp);
 
     int id = 0;
-    if (sscanf(last, "%d,", &id) == 1)
+    if (sscanf(last, "%d,", &id) == 1 && id > 0)
         return id + 1;
 
     return 1;
@@ -41,7 +42,7 @@ int next_sale_id() {
 void save_sale(Sale *s) {
     FILE *fp = fopen(SALES_F, "a");
     if (!fp) {
-        printf("File open error!\n");
+        perror("File open error");
         return;
     }
 
@@ -67,7 +68,7 @@ void save_sale(Sale *s) {
 }
 
 /* make a sale */
-void make_sale() {
+void make_sale(void) {
     Sale s;
     char fuel[16];
 
@@ -81,10 +82,11 @@ void make_sale() {
     printf("Fuel type: ");
     fgets(fuel, sizeof(fuel), stdin);
     fuel[strcspn(fuel,"\n")] = 0;
-    strcpy(s.fuel, fuel);
+    strncpy(s.fuel, fuel, sizeof(s.fuel)-1);
 
     printf("Liters: ");
-    scanf("%lf", &s.liters); getchar();
+    if (scanf("%lf", &s.liters) != 1) { int c; while ((c=getchar())!=EOF && c!='\n'); printf("Invalid liters\n"); return; }
+    getchar();
 
     if (strcasecmp(fuel,"Petrol")==0) s.rate=110;
     else if (strcasecmp(fuel,"Diesel")==0) s.rate=95;
@@ -97,7 +99,8 @@ void make_sale() {
     s.payMethod[strcspn(s.payMethod,"\n")] = 0;
 
     printf("Extra info? 0-none 1-phone 2-licence: ");
-    scanf("%d",&s.prefType); getchar();
+    if (scanf("%d",&s.prefType) != 1) { int c; while ((c=getchar())!=EOF && c!='\n'); s.prefType = 0; }
+    getchar();
 
     if (s.prefType == 1) {
         printf("Phone: ");
@@ -111,7 +114,7 @@ void make_sale() {
     }
 
     s.id = next_sale_id();
-    strcpy(s.date, today_date());
+    strncpy(s.date, today_date(), sizeof(s.date)-1);
 
     save_sale(&s);
 
@@ -119,12 +122,12 @@ void make_sale() {
 }
 
 /* today sales */
-void view_sales_today() {
+void view_sales_today(void) {
     FILE *fp = fopen(SALES_F,"r");
     if (!fp) { printf("No sales file!\n"); return; }
 
     char line[LINE_MAX], td[12];
-    strcpy(td, today_date());
+    strncpy(td, today_date(), sizeof(td)-1);
 
     printf("\nToday's Sales (%s)\n", td);
 
@@ -136,7 +139,7 @@ void view_sales_today() {
         if (sscanf(line,"%d,%10[^,],%19[^,],%39[^,],%15[^,],%lf,%lf,%lf,%d,%23[^,],%11[^\n]",
             &id,date,veh,drv,fuel,&l,&r,&t,&pref,pv,pay)==11) {
 
-            if (!strcmp(date,td))
+            if (strcmp(date,td) == 0)
                 printf("%d  %s  %s  %.2f  %.2f\n",id,veh,fuel,l,t);
         }
     }
@@ -144,11 +147,11 @@ void view_sales_today() {
 }
 
 /* totals */
-void totals_today() {
+void totals_today(void) {
     FILE *fp = fopen(SALES_F,"r");
     if (!fp) return;
 
-    char td[12]; strcpy(td,today_date());
+    char td[12]; strncpy(td,today_date(),sizeof(td)-1);
     char line[LINE_MAX];
     double p=0,d=0,o=0;
 
@@ -156,48 +159,17 @@ void totals_today() {
         int id,pref; char date[12],fuel[16];
         double l,r,t;
 
-        sscanf(line,"%d,%10[^,],%*[^,],%*[^,],%15[^,],%lf,%lf,%lf,%d",
-               &id,date,fuel,&l,&r,&t,&pref);
+        if (sscanf(line,"%d,%10[^,],%*[^,],%*[^,],%15[^,],%lf,%lf,%lf,%d",
+               &id,date,fuel,&l,&r,&t,&pref) >= 5) {
 
-        if (!strcmp(date,td)) {
-            if (!strcasecmp(fuel,"Petrol")) p+=l;
-            else if (!strcasecmp(fuel,"Diesel")) d+=l;
-            else o+=l;
+            if (strcmp(date,td) == 0) {
+                if (!strcasecmp(fuel,"Petrol")) p+=l;
+                else if (!strcasecmp(fuel,"Diesel")) d+=l;
+                else o+=l;
+            }
         }
     }
     fclose(fp);
 
     printf("\nTotals: Petrol=%.2f  Diesel=%.2f  Other=%.2f\n",p,d,o);
-}
-
-/* cancel */
-void cancel_sale() {
-    int rid;
-    printf("Enter ID to cancel: ");
-    scanf("%d",&rid);
-
-    FILE *fp=fopen(SALES_F,"r");
-    FILE *tp=fopen("tmp.txt","w");
-    if (!fp||!tp) return;
-
-    char line[LINE_MAX]; int found=0;
-
-    while (fgets(line,sizeof(line),fp)) {
-        int id;
-        sscanf(line,"%d,",&id);
-        if (id==rid) { found=1; continue; }
-        fputs(line,tp);
-    }
-
-    fclose(fp); fclose(tp);
-
-    if (found) {
-        remove(SALES_F);
-        rename("tmp.txt",SALES_F);
-        printf("Sale Deleted.\n");
-    }
-    else {
-        remove("tmp.txt");
-        printf("ID Not Found.\n");
-    }
 }

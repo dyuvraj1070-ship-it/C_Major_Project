@@ -1,7 +1,8 @@
 #include "sales.h"
 #include <stdlib.h>
+#include <stdio.h>
 
-int main() {
+int main(void) {
     int ch;
 
     while (1) {
@@ -9,18 +10,21 @@ int main() {
         printf("1. Make Sale\n");
         printf("2. View Today Sales\n");
         printf("3. Totals Today\n");
-        printf("4. Cancel Sale\n");
-        printf("5. Exit\n");
+        printf("4. Exit\n");
         printf("Choice: ");
 
-        scanf("%d",&ch);
+        if (scanf("%d", &ch) != 1) {
+            /* clear bad input */
+            int c; while ((c = getchar()) != EOF && c != '\n');
+            printf("Invalid input\n");
+            continue;
+        }
 
-        switch(ch) {
+        switch (ch) {
             case 1: make_sale(); break;
             case 2: view_sales_today(); break;
             case 3: totals_today(); break;
-            case 4: cancel_sale(); break;
-            case 5: printf("Bye!\n"); exit(0);
+            case 4: printf("Bye!\n"); exit(0);
             default: printf("Invalid Option!\n");
         }
     }
