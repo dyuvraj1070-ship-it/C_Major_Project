@@ -1,36 +1,39 @@
 #ifndef SALES_H
 #define SALES_H
 
-#include "utils.h"
+#include <stdio.h>
 
 #define SALES_F  "sales.txt"
 #define NAME_LEN 40
 #define REG_LEN  20
-#define LINE_MAX 512
+#define LINE_MAX 256
 
-typedef union { char phone[16]; char licence[24]; } Extra;
+typedef union {
+    char phone[16];
+    char licence[24];
+} Extra;
 
 typedef struct {
     int id;
-    char date[11]; // YYYY-MM-DD
+    char date[11];
     char vehReg[REG_LEN];
     char driver[NAME_LEN];
-    char fuel[16]; // Petrol/Diesel etc
+    char fuel[16];
     double liters;
     double rate;
     double total;
-    int prefType; // 0 none, 1 phone, 2 licence
+    int prefType;
     Extra ex;
-    char payMethod[12]; // Cash/Card/UPI
+    char payMethod[12];
 } Sale;
 
-/* core functions */
-int next_sale_id(void);
-void save_sale(const Sale *s);
-void make_sale(void);
-void view_sales_today(void);
-void totals_today(void);
-void cancel_sale(void);
+/* function declarations */
+char *today_date();
+int next_sale_id();
+void save_sale(Sale *s);
+void make_sale();
+void view_sales_today();
+void totals_today();
+void cancel_sale();
 
-#endif /* SALES_H */
-
+#endif
